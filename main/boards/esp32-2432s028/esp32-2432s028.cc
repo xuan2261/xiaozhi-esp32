@@ -3,7 +3,7 @@
 #include "display/lcd_display.h"
 #include "button.h"
 #include "config.h"
-#include "led/gpio_led.h"
+#include "led/led.h"
 #include "backlight.h"
 #include "application.h"
 
@@ -12,10 +12,43 @@
 #include <esp_lcd_panel_io.h>
 #include <esp_lcd_panel_ops.h>
 #include <driver/spi_master.h>
+#include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
 #define TAG "ESP32-2432S028"
+
+// Simple GPIO LED class for ESP32 (active low)
+class SimpleLed : public Led {
+private:
+    gpio_num_t gpio_;
+    bool inverted_;
+
+public:
+    SimpleLed(gpio_num_t gpio, bool inverted = false) : gpio_(gpio), inverted_(inverted) {
+        gpio_config_t io_conf = {};
+        io_conf.intr_type = GPIO_INTR_DISABLE;
+        io_conf.mode = GPIO_MODE_OUTPUT;
+        io_conf.pin_bit_mask = (1ULL << gpio);
+        io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+        io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+        gpio_config(&io_conf);
+        TurnOff();
+    }
+
+    void TurnOn() {
+        gpio_set_level(gpio_, inverted_ ? 0 : 1);
+    }
+
+    void TurnOff() {
+        gpio_set_level(gpio_, inverted_ ? 1 : 0);
+    }
+
+    void OnStateChanged() override {
+        // Simple implementation: just turn on
+        TurnOn();
+    }
+};
 
 class Esp32_2432S028_Board : public WifiBoard {
 private:
@@ -106,8 +139,8 @@ public:
     }
 
     virtual Led* GetLed() override {
-        // Use red LED (active low) - GpioLed supports inverted output
-        static GpioLed led(BUILTIN_LED_GPIO, 1);  // 1 = inverted (active low)
+        // Use red LED (active low)
+        static SimpleLed led(BUILTIN_LED_GPIO, true);  // true = inverted (active low)
         return &led;
     }
 
