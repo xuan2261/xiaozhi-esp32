@@ -1,0 +1,16 @@
+{
+    "target": "esp32",
+    "builds": [
+        {
+            "name": "esp32-2432s028",
+            "sdkconfig_append": [
+                "CONFIG_IDF_TARGET=\"esp32\"",
+                "CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y",
+                "CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=\"partitions/v1/4m.csv\"",
+                "CONFIG_ESP_MAIN_TASK_STACK_SIZE=4096",
+                "CONFIG_FREERTOS_HZ=1000"
+            ]
+        }
+    ]
+}
+
