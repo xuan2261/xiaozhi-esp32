@@ -3,7 +3,7 @@
 #include "display/lcd_display.h"
 #include "button.h"
 #include "config.h"
-#include "led/single_led.h"
+#include "led/gpio_led.h"
 #include "backlight.h"
 #include "application.h"
 
@@ -38,7 +38,7 @@ private:
 
     void InitializeIli9341Display() {
         ESP_LOGI(TAG, "Initialize ILI9341 LCD display");
-        
+
         // Initialize panel IO (SPI)
         esp_lcd_panel_io_spi_config_t io_config = {};
         io_config.cs_gpio_num = DISPLAY_CS;
@@ -50,17 +50,20 @@ private:
         io_config.lcd_param_bits = 8;
         ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(SPI2_HOST, &io_config, &panel_io_));
 
-        // Initialize LCD panel driver (ILI9341)
+        // Initialize LCD panel driver
+        // Note: ILI9341 is compatible with ST7789 driver in most cases
         esp_lcd_panel_dev_config_t panel_config = {};
         panel_config.reset_gpio_num = DISPLAY_RST;
-        panel_config.rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR;  // ILI9341 typically uses BGR
+        panel_config.rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR;  // ILI9341 uses BGR
         panel_config.bits_per_pixel = 16;
-        ESP_ERROR_CHECK(esp_lcd_new_panel_ili9341(panel_io_, &panel_config, &panel_));
+
+        // Use ST7789 driver as fallback (compatible with ILI9341)
+        ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(panel_io_, &panel_config, &panel_));
 
         // Reset and initialize panel
         ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_));
         ESP_ERROR_CHECK(esp_lcd_panel_init(panel_));
-        
+
         // Set orientation
         ESP_ERROR_CHECK(esp_lcd_panel_swap_xy(panel_, DISPLAY_SWAP_XY));
         ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel_, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y));
@@ -68,10 +71,10 @@ private:
 
         // Create display object
         display_ = new SpiLcdDisplay(panel_io_, panel_,
-                                    DISPLAY_WIDTH, DISPLAY_HEIGHT, 
+                                    DISPLAY_WIDTH, DISPLAY_HEIGHT,
                                     DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y,
                                     DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
-        
+
         ESP_LOGI(TAG, "LCD display initialized successfully");
     }
 
@@ -103,8 +106,8 @@ public:
     }
 
     virtual Led* GetLed() override {
-        // Use red LED (active low)
-        static SingleLed led(BUILTIN_LED_GPIO, true);  // true = inverted (active low)
+        // Use red LED (active low) - GpioLed supports inverted output
+        static GpioLed led(BUILTIN_LED_GPIO, 1);  // 1 = inverted (active low)
         return &led;
     }
 
